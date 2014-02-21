@@ -9,19 +9,6 @@ int xi_opcode;
 int xi_evcode;
 int xi_errcode;
 
-void print_motion(XIDeviceEvent *event)
-{
-    int i;
-    double *valuator = event->valuators.values;
-
-    for (i = 0; i < event->valuators.mask_len * 8; i++) {
-        if (XIMaskIsSet(event->valuators.mask, i)) {
-            printf("Value on valuator %d: %f\n", 
-                   i, *valuator);
-            valuator++;
-        }
-    }
-}
 
 int main(int argc, char **argv) 
 {
@@ -31,12 +18,11 @@ int main(int argc, char **argv)
   XIEventMask mask;
   int deviceid = XIAllMasterDevices;
   Window root_window;
-  int i = 0;
   XIGrabModifiers modifiers = {0};
-  char *window_name;
-  Window target_window = -1;
-  double target_x, target_y;
-
+  Window target_window = -1, root_return;
+  int target_x, target_y, win_x_return, win_y_return, mask_return;
+  int pressed = 0;
+  
   display = XOpenDisplay(NULL);
   if(!display) {
     exit(1);
@@ -66,16 +52,12 @@ int main(int argc, char **argv)
   mask.deviceid = deviceid;
   mask.mask_len = XIMaskLen(XI_LASTEVENT);
   mask.mask = calloc(mask.mask_len, sizeof(char));
-  XISetMask(mask.mask, XI_Motion);
-  XISetMask(mask.mask, XI_ButtonPress);
-  XISetMask(mask.mask, XI_ButtonRelease);
-  modifiers.modifiers = XIAnyModifier;
+  XISetMask(mask.mask, XI_RawMotion);
+  XISetMask(mask.mask, XI_RawButtonPress);
+  XISetMask(mask.mask, XI_RawButtonRelease);
   root_window = XDefaultRootWindow(display);
   XISelectEvents(display, root_window, &mask, 1);
   XSelectInput(display, root_window, 0);
-  XIGrabButton(display, XIAllMasterDevices, 2, root_window,
-	       None, XIGrabModeAsync, XIGrabModeAsync, 1,
-	       &mask, 1, &modifiers);
 
   while(1) {
     XNextEvent(display, &ev);
@@ -83,41 +65,33 @@ int main(int argc, char **argv)
 	cookie->type == GenericEvent &&
 	cookie->extension == xi_opcode)
       {
-	XIDeviceEvent *event_data = (XIDeviceEvent*)cookie->data;
-	if(cookie->evtype == XI_Motion) {
-	  XIUngrabButton(display, XIAllMasterDevices, 2, root_window, 
-			 1, &modifiers);
-	  if (XIMaskIsSet(event_data->buttons.mask, 2)) { 
-	    printf("Got motion to: %f %f from %f %f with button 2 pressed\n", 
-	      event_data->root_x, event_data->root_y, target_x, target_y);
-	    if(event_data->root_y < target_y) {
-	      XTestFakeButtonEvent(display, 4, True, CurrentTime);
-	      XTestFakeButtonEvent(display, 4, False, CurrentTime+1);
-	    } else if (event_data->root_y > target_y) {
-	      XTestFakeButtonEvent(display, 5, True, CurrentTime);
-	      XTestFakeButtonEvent(display, 5, False, CurrentTime+1);
+	XIRawEvent *event_data = (XIRawEvent*)cookie->data;
+	if(cookie->evtype == XI_RawMotion) {	  
+	  if (pressed == 1) { 
+	   
+	    if (XIMaskIsSet(event_data->valuators.mask, 1)) {
+	      if(event_data->valuators.values[1] < 0) {
+		XTestFakeButtonEvent(display, 4, True, CurrentTime);
+		XTestFakeButtonEvent(display, 4, False, CurrentTime);
+	      } else if (event_data->valuators.values[1] > 0) {
+		XTestFakeButtonEvent(display, 5, True, CurrentTime);
+		XTestFakeButtonEvent(display, 5, False, CurrentTime);
+	      }	      
 	    }
+	    XWarpPointer(display, None, root_window, 
+			  0,0,0,0, target_x, target_y);
 	  }
-	  XIGrabButton(display, XIAllMasterDevices, 2, root_window,
-	       None, XIGrabModeAsync, XIGrabModeAsync, 1,
-	       &mask, 1, &modifiers);
-  
-	} else if (cookie->evtype == XI_ButtonPress) {
-	  target_x = event_data->root_x;
-	  target_y = event_data->root_y;
-	  int i;
-	  for(i = 1; i < 12; ++i) {
-	    if(XIMaskIsSet(event_data->buttons.mask, i)) {
-	      printf("Button %d pressed\n", i);
-	    }
-	  }
-	  printf("%f %f in %lx\n", target_x, target_y, event_data->child);
-	} else if (cookie->evtype == XI_ButtonRelease) {
-	  for(i = 1; i < 12; ++i) {
-	    if(XIMaskIsSet(event_data->buttons.mask, i)) {
-	      printf("Button %d released\n", i);
-	    }
+	} else if (cookie->evtype == XI_RawButtonPress) {
+	  if (event_data->detail == 2) {
+	    pressed = 1;
+	    XQueryPointer(display, root_window, &root_return,
+			  &target_window, &target_x, &target_y,
+			  &win_x_return, &win_y_return, &mask_return);
 	  }	  
+	} else if (cookie->evtype == XI_RawButtonRelease) {
+	  if (event_data->detail == 2) {
+	    pressed = 0;
+	  }	  	  
 	}
       }
     XFreeEventData(display, cookie);
