@@ -1,0 +1,19 @@
+This is a small daemon to implement trackpoint-based scrolling on
+Thinkpads that don't have physical buttons for the trackpoint
+(e.g. the X240 and T440). It uses the XI2 raw event mechanism to
+monitor for button presses and trackpoint movement, and the XTest
+extension to synthesize scroll events; as such, building it requires
+the X11 core headers as well as headers for the XI2 and XTest
+extensions.
+
+To build, just run 'make'.
+
+Currently it has a bug where if you have text in the PRIMARY
+selection, it will get pasted into the window you're scrolling in when
+you start scrolling. I will hopefully address this in a future release.
+
+It also currently does approximately no error handling, but as the
+default behavior of Xlib is to explode the client horribly upon any
+error, this is not actually as bad as it sounds.
+
+Happy scrolling!
