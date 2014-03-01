@@ -78,6 +78,16 @@ int main(int argc, char **argv)
 		XTestFakeButtonEvent(display, 5, False, CurrentTime);
 	      }	      
 	    }
+	    if (XIMaskIsSet(event_data->valuators.mask, 0)) {
+	      if(event_data->valuators.values[0] < 0) {
+		XTestFakeButtonEvent(display, 6, True, CurrentTime);
+		XTestFakeButtonEvent(display, 6, False, CurrentTime);
+	      } else if (event_data->valuators.values[0] > 0) {
+		XTestFakeButtonEvent(display, 7, True, CurrentTime);
+		XTestFakeButtonEvent(display, 7, False, CurrentTime);
+	      }	      
+	    }
+
 	    XWarpPointer(display, None, root_window, 
 			  0,0,0,0, target_x, target_y);
 	  }
