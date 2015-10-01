@@ -1,3 +1,10 @@
+****NOTE: This is obsolete now. You should use the libinput Xorg input
+driver instead (xserver-xorg-input-libinput on modern Debian or
+Ubuntu), which correctly handles the stick and soft buttons as a
+single logical device****
+
+
+
 This is a small daemon to implement trackpoint-based scrolling on
 Thinkpads that don't have physical buttons for the trackpoint
 (e.g. the X240 and T440). It uses the XI2 raw event mechanism to
